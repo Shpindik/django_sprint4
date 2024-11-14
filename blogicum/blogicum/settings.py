@@ -97,14 +97,14 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    BASE_DIR / "static",
+    BASE_DIR / 'static',
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CSRF_FAILURE_VIEW = 'pages.views.csrf_failure'
 
-LOGIN_REDIRECT_URL = 'blog:endpoint'
+LOGIN_REDIRECT_URL = 'blog:post_list'
 
 LOGIN_URL = 'login'
 

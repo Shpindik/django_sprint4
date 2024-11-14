@@ -1,0 +1,2 @@
+MAX_256 = 256
+MAX_LENGTH = 10

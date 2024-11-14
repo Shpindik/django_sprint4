@@ -1,17 +1,17 @@
-from django.db import models
 from django.contrib.auth import get_user_model
-from django.utils import timezone
+from django.db import models
 from django.db.models import Count
+from django.utils import timezone
 
-from .extensions.constants import MAX_256, TITLE, NAME, MAX_LENGTH
+from .constants import MAX_256, MAX_LENGTH
 
 
 User = get_user_model()
 
 
-class FilterManager(models.Manager):
+class FilterQuerySet(models.QuerySet):
     def published_posts(self):
-        return super().filter(
+        return self.filter(
             is_published=True,
             category__is_published=True,
             pub_date__lt=timezone.now()
@@ -21,10 +21,18 @@ class FilterManager(models.Manager):
             'location'
         ).annotate(
             comment_count=Count('comments')
-        ).order_by('-pub_date')
+        ).order_by(*self.model._meta.ordering)
 
 
-class BaseModel(models.Model):
+class FilterManager(models.Manager):
+    def get_queryset(self):
+        return FilterQuerySet(self.model, using=self._db)
+
+    def published_posts(self):
+        return self.get_queryset().published_posts()
+
+
+class PublicationBaseModel(models.Model):
     is_published = models.BooleanField(
         default=True,
         verbose_name='Опубликовано',
@@ -37,11 +45,11 @@ class BaseModel(models.Model):
 
     class Meta:
         abstract = True
-        ordering = ['-created_at']
+        ordering = ('-created_at',)
 
 
-class Category(BaseModel):
-    title = models.CharField(max_length=MAX_256, verbose_name=TITLE)
+class Category(PublicationBaseModel):
+    title = models.CharField(max_length=MAX_256, verbose_name='Заголовок')
     description = models.TextField(verbose_name='Описание')
     slug = models.SlugField(
         unique=True,
@@ -50,32 +58,27 @@ class Category(BaseModel):
                   ' цифры, дефис и подчёркивание.'
     )
 
-    class Meta(BaseModel.Meta):
+    class Meta(PublicationBaseModel.Meta):
         verbose_name = 'категория'
         verbose_name_plural = 'Категории'
-        indexes = [
-            models.Index(fields=['slug']),
-        ]
-        ordering = ['-created_at']
 
     def __str__(self):
         return self.title[:MAX_LENGTH]
 
 
-class Location(BaseModel):
-    name = models.CharField(max_length=MAX_256, verbose_name=NAME)
+class Location(PublicationBaseModel):
+    name = models.CharField(max_length=MAX_256, verbose_name='Название места')
 
-    class Meta(BaseModel.Meta):
+    class Meta(PublicationBaseModel.Meta):
         verbose_name = 'местоположение'
         verbose_name_plural = 'Местоположения'
-        ordering = ['-created_at']
 
     def __str__(self):
         return self.name[:MAX_LENGTH]
 
 
-class Post(BaseModel):
-    title = models.CharField(max_length=MAX_256, verbose_name=TITLE)
+class Post(PublicationBaseModel):
+    title = models.CharField(max_length=MAX_256, verbose_name='Заголовок')
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(
         verbose_name='Дата и время публикации',
@@ -103,10 +106,10 @@ class Post(BaseModel):
     image = models.ImageField('Фото', upload_to='posts_images', blank=True)
     objects = FilterManager()
 
-    class Meta:
+    class Meta(PublicationBaseModel.Meta):
         verbose_name = 'публикация'
         verbose_name_plural = 'Публикации'
-        ordering = ['-pub_date']
+        ordering = ('-pub_date',)
         default_related_name = 'posts'
 
     def __str__(self):
@@ -117,7 +120,6 @@ class Comment(models.Model):
     post = models.ForeignKey(
         Post,
         on_delete=models.CASCADE,
-        related_name='comments',
         verbose_name='Пост'
     )
     author = models.ForeignKey(
@@ -126,13 +128,16 @@ class Comment(models.Model):
         verbose_name='Автор'
     )
     text = models.TextField(verbose_name='Комментарий')
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='Дата добавления'
+    )
 
-    class Meta:
+    class Meta(PublicationBaseModel.Meta):
         verbose_name = 'комментарий'
         verbose_name_plural = 'Комментарии'
-        ordering = ['-created_at']
         default_related_name = 'comments'
+        ordering = ('created_at',)
 
     def __str__(self):
         return self.text[:MAX_LENGTH]
