@@ -1,14 +1,17 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.core.paginator import Paginator
-from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
 from django.views.generic import (CreateView, DeleteView,
                                   DetailView, ListView, UpdateView)
 
-from .constants import POSTS_DISPLAY_PER_PAGE, POSTS_PER_PAGE_LIMIT
-from .forms import CommentForm, BlogCreationForm
+from .constants import (
+    DISPLAY_CATEGORY_COUNT,
+    DISPLAY_POST_COUNT,
+    POSTS_PER_PAGE_LIMIT
+)
+from .forms import CommentForm, PostForm
 from .models import Category, Comment, Post
 
 
@@ -21,7 +24,7 @@ class PostListView(ListView):
     model = Post
     queryset = Post.objects.get_posts()
     template_name = 'blog/post_list.html'
-    paginate_by = POSTS_DISPLAY_PER_PAGE
+    paginate_by = DISPLAY_POST_COUNT
     context_object_name = 'post_list'
 
 
@@ -37,11 +40,10 @@ class PostDetailView(DetailView):
         post = get_object_or_404(queryset, pk=self.kwargs['post_id'])
         if self.request.user == post.author:
             return post
-        published_queryset = queryset.get_posts(
+        return get_object_or_404(queryset.get_posts(
             apply_select_related=False,
             apply_annotate=False
-        )
-        return get_object_or_404(published_queryset, pk=self.kwargs['post_id'])
+        ), pk=self.kwargs['post_id'])
 
     def get_context_data(self, **kwargs):
         return super().get_context_data(
@@ -55,7 +57,7 @@ class CategoryListView(ListView):
     model = Category
     template_name = 'blog/category.html'
     context_object_name = 'post_list'
-    paginate_by = POSTS_DISPLAY_PER_PAGE
+    paginate_by = DISPLAY_CATEGORY_COUNT
 
     def get_category(self):
         return get_object_or_404(
@@ -89,16 +91,11 @@ class ProfileDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         author = self.get_author()
-        posts = author.posts.get_posts(
-            apply_filters=self.request.user != author,
-        )
-        if self.request.user == author:
-            posts = posts.select_related('author', 'category', 'location') \
-                         .annotate(comment_count=Count('comments'))
         return super().get_context_data(
             **kwargs,
             page_obj=Paginator(
-                posts.order_by('-pub_date'),
+                self.get_author().posts.get_posts(
+                    apply_filters=self.request.user != author,),
                 POSTS_PER_PAGE_LIMIT
             ).get_page(self.request.GET.get('page', 1))
         )
@@ -121,7 +118,7 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
 class PostCreateView(LoginRequiredMixin, CreateView):
     model = Post
     template_name = 'blog/create.html'
-    form_class = BlogCreationForm
+    form_class = PostForm
 
     def form_valid(self, form):
         form.instance.author = self.request.user
@@ -138,7 +135,7 @@ class PostUpdateView(OnlyAuthorMixin, UpdateView):
     template_name = 'blog/create.html'
     slug_field = 'id'
     slug_url_kwarg = 'post_id'
-    form_class = BlogCreationForm
+    form_class = PostForm
 
     def dispatch(self, request, *args, **kwargs):
         post = self.get_object()
@@ -164,7 +161,7 @@ class PostDeleteView(OnlyAuthorMixin, DeleteView):
     def get_context_data(self, **kwargs):
         return super().get_context_data(
             **kwargs,
-            form=BlogCreationForm(instance=self.object)
+            form=PostForm(instance=self.object)
         )
 
 

@@ -3,7 +3,7 @@ from django.db import models
 from django.db.models import Count
 from django.utils import timezone
 
-from .constants import MAX_TEXT_LENGTH, POSTS_DISPLAY_PER_PAGE
+from .constants import MAX_TEXT_LENGTH, POSTS_PER_PAGE_LIMIT
 
 
 User = get_user_model()
@@ -70,7 +70,7 @@ class Category(PublicationBaseModel):
         verbose_name_plural = 'Категории'
 
     def __str__(self):
-        return self.title[:POSTS_DISPLAY_PER_PAGE]
+        return self.title[:POSTS_PER_PAGE_LIMIT]
 
 
 class Location(PublicationBaseModel):
@@ -84,7 +84,7 @@ class Location(PublicationBaseModel):
         verbose_name_plural = 'Местоположения'
 
     def __str__(self):
-        return self.name[:POSTS_DISPLAY_PER_PAGE]
+        return self.name[:POSTS_PER_PAGE_LIMIT]
 
 
 class Post(PublicationBaseModel):
@@ -126,7 +126,7 @@ class Post(PublicationBaseModel):
         default_related_name = 'posts'
 
     def __str__(self):
-        return self.title[:POSTS_DISPLAY_PER_PAGE]
+        return self.title[:POSTS_PER_PAGE_LIMIT]
 
 
 class Comment(models.Model):
@@ -153,4 +153,4 @@ class Comment(models.Model):
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.text[:POSTS_DISPLAY_PER_PAGE]
+        return self.text[:POSTS_PER_PAGE_LIMIT]
