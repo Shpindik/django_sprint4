@@ -3,7 +3,7 @@ from django import forms
 from .models import Post, Comment
 
 
-class BlogAppForm(forms.ModelForm):
+class BlogCreationForm(forms.ModelForm):
     class Meta:
         model = Post
         exclude = ('author',)
