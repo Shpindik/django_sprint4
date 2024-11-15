@@ -3,33 +3,37 @@ from django.db import models
 from django.db.models import Count
 from django.utils import timezone
 
-from .constants import MAX_256, MAX_LENGTH
+from .constants import MAX_TEXT_LENGTH, MAX_PAGE_LENGTH
 
 
 User = get_user_model()
 
 
 class FilterQuerySet(models.QuerySet):
-    def published_posts(self):
-        return self.filter(
-            is_published=True,
-            category__is_published=True,
-            pub_date__lt=timezone.now()
-        ).select_related(
-            'author',
-            'category',
-            'location'
-        ).annotate(
-            comment_count=Count('comments')
-        ).order_by(*self.model._meta.ordering)
-
-
-class FilterManager(models.Manager):
-    def get_queryset(self):
-        return FilterQuerySet(self.model, using=self._db)
-
-    def published_posts(self):
-        return self.get_queryset().published_posts()
+    def published_posts(
+            self,
+            apply_filters=True,
+            apply_select_related=True,
+            apply_annotate=True
+    ):
+        queryset = self
+        if apply_filters:
+            queryset = queryset.filter(
+                is_published=True,
+                category__is_published=True,
+                pub_date__lt=timezone.now()
+            )
+        if apply_select_related:
+            queryset = queryset.select_related(
+                'author',
+                'category',
+                'location'
+            )
+        if apply_annotate:
+            queryset = queryset.annotate(
+                comment_count=Count('comments')
+            )
+        return queryset.order_by(*self.model._meta.ordering)
 
 
 class PublicationBaseModel(models.Model):
@@ -49,7 +53,10 @@ class PublicationBaseModel(models.Model):
 
 
 class Category(PublicationBaseModel):
-    title = models.CharField(max_length=MAX_256, verbose_name='Заголовок')
+    title = models.CharField(
+        max_length=MAX_TEXT_LENGTH,
+        verbose_name='Заголовок'
+    )
     description = models.TextField(verbose_name='Описание')
     slug = models.SlugField(
         unique=True,
@@ -63,22 +70,28 @@ class Category(PublicationBaseModel):
         verbose_name_plural = 'Категории'
 
     def __str__(self):
-        return self.title[:MAX_LENGTH]
+        return self.title[:MAX_PAGE_LENGTH]
 
 
 class Location(PublicationBaseModel):
-    name = models.CharField(max_length=MAX_256, verbose_name='Название места')
+    name = models.CharField(
+        max_length=MAX_TEXT_LENGTH,
+        verbose_name='Название места'
+    )
 
     class Meta(PublicationBaseModel.Meta):
         verbose_name = 'местоположение'
         verbose_name_plural = 'Местоположения'
 
     def __str__(self):
-        return self.name[:MAX_LENGTH]
+        return self.name[:MAX_PAGE_LENGTH]
 
 
 class Post(PublicationBaseModel):
-    title = models.CharField(max_length=MAX_256, verbose_name='Заголовок')
+    title = models.CharField(
+        max_length=MAX_TEXT_LENGTH,
+        verbose_name='Заголовок'
+    )
     text = models.TextField(verbose_name='Текст')
     pub_date = models.DateTimeField(
         verbose_name='Дата и время публикации',
@@ -104,7 +117,7 @@ class Post(PublicationBaseModel):
         verbose_name='Категория'
     )
     image = models.ImageField('Фото', upload_to='posts_images', blank=True)
-    objects = FilterManager()
+    objects = FilterQuerySet.as_manager()
 
     class Meta(PublicationBaseModel.Meta):
         verbose_name = 'публикация'
@@ -113,7 +126,7 @@ class Post(PublicationBaseModel):
         default_related_name = 'posts'
 
     def __str__(self):
-        return self.title[:MAX_LENGTH]
+        return self.title[:MAX_PAGE_LENGTH]
 
 
 class Comment(models.Model):
@@ -133,11 +146,11 @@ class Comment(models.Model):
         verbose_name='Дата добавления'
     )
 
-    class Meta(PublicationBaseModel.Meta):
+    class Meta:
         verbose_name = 'комментарий'
         verbose_name_plural = 'Комментарии'
         default_related_name = 'comments'
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.text[:MAX_LENGTH]
+        return self.text[:MAX_PAGE_LENGTH]
