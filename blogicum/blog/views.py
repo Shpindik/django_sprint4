@@ -6,11 +6,7 @@ from django.urls import reverse, reverse_lazy
 from django.views.generic import (CreateView, DeleteView,
                                   DetailView, ListView, UpdateView)
 
-from .constants import (
-    DISPLAY_CATEGORY_COUNT,
-    DISPLAY_POST_COUNT,
-    POSTS_PER_PAGE_LIMIT
-)
+from .constants import POSTS_PER_PAGE_LIMIT
 from .forms import CommentForm, PostForm
 from .models import Category, Comment, Post
 
@@ -24,7 +20,7 @@ class PostListView(ListView):
     model = Post
     queryset = Post.objects.get_posts()
     template_name = 'blog/post_list.html'
-    paginate_by = DISPLAY_POST_COUNT
+    paginate_by = POSTS_PER_PAGE_LIMIT
     context_object_name = 'post_list'
 
 
@@ -57,7 +53,7 @@ class CategoryListView(ListView):
     model = Category
     template_name = 'blog/category.html'
     context_object_name = 'post_list'
-    paginate_by = DISPLAY_CATEGORY_COUNT
+    paginate_by = POSTS_PER_PAGE_LIMIT
 
     def get_category(self):
         return get_object_or_404(
@@ -90,12 +86,11 @@ class ProfileDetailView(DetailView):
         )
 
     def get_context_data(self, **kwargs):
-        author = self.get_author()
         return super().get_context_data(
             **kwargs,
             page_obj=Paginator(
                 self.get_author().posts.get_posts(
-                    apply_filters=self.request.user != author,),
+                    apply_filters=self.request.user != self.get_author(),),
                 POSTS_PER_PAGE_LIMIT
             ).get_page(self.request.GET.get('page', 1))
         )
