@@ -3,37 +3,37 @@ from django.db import models
 from django.db.models import Count
 from django.utils import timezone
 
-from .constants import MAX_TEXT_LENGTH, MAX_PAGE_LENGTH
+from .constants import MAX_TEXT_LENGTH, PAGINATE_DISPLAY
 
 
 User = get_user_model()
 
 
 class FilterQuerySet(models.QuerySet):
-    def published_posts(
+    def get_posts(
             self,
             apply_filters=True,
             apply_select_related=True,
             apply_annotate=True
     ):
-        queryset = self
+        posts = self  # Переименовано для большей ясности
         if apply_filters:
-            queryset = queryset.filter(
+            posts = posts.filter(
                 is_published=True,
                 category__is_published=True,
                 pub_date__lt=timezone.now()
             )
         if apply_select_related:
-            queryset = queryset.select_related(
+            posts = posts.select_related(
                 'author',
                 'category',
                 'location'
             )
         if apply_annotate:
-            queryset = queryset.annotate(
+            posts = posts.annotate(
                 comment_count=Count('comments')
-            )
-        return queryset.order_by(*self.model._meta.ordering)
+            ).order_by(*self.model._meta.ordering)
+        return posts
 
 
 class PublicationBaseModel(models.Model):
@@ -70,7 +70,7 @@ class Category(PublicationBaseModel):
         verbose_name_plural = 'Категории'
 
     def __str__(self):
-        return self.title[:MAX_PAGE_LENGTH]
+        return self.title[:PAGINATE_DISPLAY]
 
 
 class Location(PublicationBaseModel):
@@ -84,7 +84,7 @@ class Location(PublicationBaseModel):
         verbose_name_plural = 'Местоположения'
 
     def __str__(self):
-        return self.name[:MAX_PAGE_LENGTH]
+        return self.name[:PAGINATE_DISPLAY]
 
 
 class Post(PublicationBaseModel):
@@ -126,7 +126,7 @@ class Post(PublicationBaseModel):
         default_related_name = 'posts'
 
     def __str__(self):
-        return self.title[:MAX_PAGE_LENGTH]
+        return self.title[:PAGINATE_DISPLAY]
 
 
 class Comment(models.Model):
@@ -153,4 +153,4 @@ class Comment(models.Model):
         ordering = ('created_at',)
 
     def __str__(self):
-        return self.text[:MAX_PAGE_LENGTH]
+        return self.text[:PAGINATE_DISPLAY]
